@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { TokenLogin } from './components/TokenLogin';
 import { IdentityForm } from './components/IdentityForm';
@@ -9,8 +9,13 @@ import { CounselorDashboard } from './components/CounselorDashboard';
 import { FirebaseModal } from './components/FirebaseModal';
 import { AppInfoModal } from './components/AppInfoModal';
 import { calculateAssessmentScores } from './data/scoringRules';
-import { saveAssessmentReport } from './services/storageService';
-import { Check, ArrowRight, ShieldCheck, User } from 'lucide-react';
+import {
+  saveAssessmentReport,
+  saveActiveSessionBackup,
+  getActiveSessionBackup,
+  clearActiveSessionBackup
+} from './services/storageService';
+import { Check, ArrowRight, ShieldCheck, User, X } from 'lucide-react';
 
 const SYSTEM_STEPS = [
   { key: 'login', num: 1, title: 'Input Token', desc: 'Akses Token' },
@@ -21,16 +26,40 @@ const SYSTEM_STEPS = [
 ];
 
 export function App() {
-  const [activeView, setActiveView] = useState('login'); // 'login' | 'identity' | 'assessment' | 'report' | 'consult' | 'counselor'
-  const [currentToken, setCurrentToken] = useState(null);
-  const [studentData, setStudentData] = useState(null);
-  const [currentReport, setCurrentReport] = useState(null);
+  // Pulihkan sesi otomatis jika terjadi musibah (sinyal terputus, refresh tak sengaja, tab tertutup)
+  const initialBackup = getActiveSessionBackup();
+  const hasRestorableSession = Boolean(
+    initialBackup &&
+    initialBackup.currentToken &&
+    initialBackup.activeView &&
+    initialBackup.activeView !== 'login'
+  );
+
+  const [activeView, setActiveView] = useState(() => (hasRestorableSession ? initialBackup.activeView : 'login'));
+  const [currentToken, setCurrentToken] = useState(() => initialBackup?.currentToken || null);
+  const [studentData, setStudentData] = useState(() => initialBackup?.studentData || null);
+  const [currentReport, setCurrentReport] = useState(() => initialBackup?.currentReport || null);
+  const [sessionRestoredNotice, setSessionRestoredNotice] = useState(hasRestorableSession);
+
   const [isFirebaseModalOpen, setIsFirebaseModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+
+  // Cadangkan sesi aktif setiap ada perubahan status / data
+  useEffect(() => {
+    if (currentToken) {
+      saveActiveSessionBackup({
+        activeView,
+        currentToken,
+        studentData,
+        currentReport
+      });
+    }
+  }, [activeView, currentToken, studentData, currentReport]);
 
   // 1. Alur Login Token Berhasil -> Step 2
   const handleLoginSuccess = (tokenData) => {
     setCurrentToken(tokenData);
+    setSessionRestoredNotice(false);
 
     if (tokenData.role === 'counselor' || tokenData.role === 'admin') {
       setActiveView('counselor');
@@ -70,11 +99,14 @@ export function App() {
   const handleConsultationCompleted = (updatedReport) => {
     if (updatedReport) {
       setCurrentReport(updatedReport);
+      saveActiveSessionBackup({ currentReport: updatedReport });
     }
   };
 
   // 5. Logout / Reset Sesi ke Awal
   const handleLogout = () => {
+    clearActiveSessionBackup();
+    setSessionRestoredNotice(false);
     setCurrentToken(null);
     setStudentData(null);
     setCurrentReport(null);
@@ -164,6 +196,46 @@ export function App() {
       )}
 
       <main>
+        {/* Banner Pemulihan Sesi Otomatis */}
+        {sessionRestoredNotice && activeView !== 'login' && (
+          <div className="no-print" style={{
+            maxWidth: '760px',
+            margin: '0 auto 1.25rem auto',
+            padding: '0.75rem 1rem',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--status-normal-bg, #ECFDF5)',
+            border: '1px solid var(--status-normal, #10B981)',
+            color: '#065F46',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            fontSize: '0.85rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ShieldCheck size={18} color="#059669" style={{ flexShrink: 0 }} />
+              <span>
+                <strong>Sesi Berhasil Dipulihkan:</strong> Anda melanjutkan sesi sebelumnya. Seluruh data identitas dan jawaban Anda tersimpan aman.
+              </span>
+            </div>
+            <button
+              onClick={() => setSessionRestoredNotice(false)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#065F46',
+                padding: '0.2rem',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+              title="Tutup pemberitahuan"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
         {/* Step 1: User input token */}
         {activeView === 'login' && (
           <TokenLogin

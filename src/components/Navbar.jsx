@@ -34,15 +34,15 @@ export function Navbar({
           <span className="hidden sm:inline" style={{ fontSize: '0.78rem' }}>Panduan</span>
         </button>
 
-        {/* Backend Status / Settings Button */}
+        {/* Cloud Database Connection Settings */}
         <button
           className="btn btn-secondary btn-sm"
           onClick={onOpenFirebaseModal}
-          title="Status Basis Data Firebase"
+          title="Status Koneksi Cloud & Basis Data"
           style={{ padding: '0.4rem 0.65rem' }}
         >
-          <Database size={14} color={isFirebaseActive ? '#10B981' : '#F59E0B'} />
-          <span style={{ fontSize: '0.78rem' }}>{isFirebaseActive ? 'Online' : 'Offline'}</span>
+          <Database size={14} color={isFirebaseActive ? '#10B981' : '#3B82F6'} />
+          <span style={{ fontSize: '0.78rem' }}>{isFirebaseActive ? 'Cloud Sync' : 'Database'}</span>
         </button>
 
         {currentToken && (

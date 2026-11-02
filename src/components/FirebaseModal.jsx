@@ -23,7 +23,7 @@ export function FirebaseModal({ isOpen, onClose }) {
   };
 
   const handleResetToLocal = () => {
-    if (window.confirm('Kembalikan ke penyimpanan lokal?')) removeFirebaseConfig();
+    if (window.confirm('Reset konfigurasi khusus dan gunakan konfigurasi bawaan?')) removeFirebaseConfig();
   };
 
   return (
@@ -32,7 +32,7 @@ export function FirebaseModal({ isOpen, onClose }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Database size={20} color="var(--primary)" />
-            <h2 style={{ fontSize: '1.1rem' }}>Konfigurasi Firebase</h2>
+            <h2 style={{ fontSize: '1.1rem' }}>Konfigurasi Database Cloud</h2>
           </div>
           <button className="btn btn-secondary btn-sm" onClick={onClose}><X size={16} /></button>
         </div>
@@ -44,8 +44,8 @@ export function FirebaseModal({ isOpen, onClose }) {
         }}>
           <strong>Status: </strong>
           {isFirebaseActive
-            ? <span style={{ color: '#047857', fontWeight: 600 }}>Terhubung ({formData.projectId || 'Firebase'})</span>
-            : <span style={{ color: '#B45309', fontWeight: 600 }}>Mode Lokal — Aplikasi tetap bekerja normal.</span>
+            ? <span style={{ color: '#047857', fontWeight: 600 }}>Terhubung ke Cloud ({formData.projectId || 'Firebase'})</span>
+            : <span style={{ color: '#B45309', fontWeight: 600 }}>Penyimpanan Lokal Aktif — Data tersimpan aman dengan cadangan otomatis.</span>
           }
         </div>
 
@@ -64,7 +64,7 @@ export function FirebaseModal({ isOpen, onClose }) {
           ))}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem' }}>
-            <button type="button" className="btn btn-outline btn-sm" onClick={handleResetToLocal}>Mode Offline</button>
+            <button type="button" className="btn btn-outline btn-sm" onClick={handleResetToLocal}>Reset Konfigurasi</button>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button type="button" className="btn btn-secondary" onClick={onClose}>Tutup</button>
               <button type="submit" className="btn btn-primary">Simpan</button>

@@ -25,6 +25,8 @@ const LOCAL_STORAGE_TOKENS = 'galau_tokens_db_v2';
 const LOCAL_STORAGE_REPORTS = 'galau_reports_db_v2';
 const LOCAL_STORAGE_CRISIS = 'galau_crisis_contacts_db';
 const LOCAL_STORAGE_QUESTIONS = 'galau_questions_db_v2';
+const LOCAL_STORAGE_ACTIVE_SESSION = 'galau_active_session_backup_v1';
+const LOCAL_STORAGE_PENDING_SYNC = 'galau_pending_sync_reports_v1';
 
 /**
  * Generator Token 6 Karakter (Huruf & Angka, Seluruhnya Huruf Kecil)
@@ -288,6 +290,115 @@ export async function createNewTokens(count = 1, className = 'Umum', role = 'stu
 }
 
 /**
+ * ============================================================================
+ * CADANGAN OTOMATIS & TANGGAP DARURAT SESI (DISASTER RECOVERY BACKUP)
+ * ============================================================================
+ * Menyimpan snapshot sesi aktif (token, data siswa, jawaban, nomor soal, laporan)
+ * secara instan dalam format JSON ringan di penyimpanan lokal perangkat.
+ * Jika terjadi musibah (sinyal terputus, mati lampu, tab tertutup, refresh tidak sengaja),
+ * sesi dapat langsung dipulihkan secara mulus tanpa kehilangan data jawaban.
+ */
+
+export function saveActiveSessionBackup(sessionData) {
+  try {
+    if (!sessionData) return;
+    const existing = getActiveSessionBackup() || {};
+    const payload = {
+      ...existing,
+      ...sessionData,
+      updatedAt: new Date().toISOString()
+    };
+    localStorage.setItem(LOCAL_STORAGE_ACTIVE_SESSION, JSON.stringify(payload));
+    return payload;
+  } catch (err) {
+    console.warn('Gagal menyimpan cadangan sesi aktif:', err);
+    return null;
+  }
+}
+
+export function getActiveSessionBackup() {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_ACTIVE_SESSION);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearActiveSessionBackup() {
+  try {
+    localStorage.removeItem(LOCAL_STORAGE_ACTIVE_SESSION);
+  } catch (err) {
+    console.warn('Gagal membersihkan cadangan sesi:', err);
+  }
+}
+
+/**
+ * Antrean Sinkronisasi Laporan Otomatis (Pending Sync Queue)
+ * Menampung laporan yang selesai saat sinyal drop untuk dikirimkan otomatis ke server saat online.
+ */
+export function enqueuePendingSyncReport(report) {
+  try {
+    const queue = JSON.parse(localStorage.getItem(LOCAL_STORAGE_PENDING_SYNC) || '[]');
+    const existingIdx = queue.findIndex(item => item.id === report.id || item.token === report.token);
+    if (existingIdx >= 0) {
+      queue[existingIdx] = report;
+    } else {
+      queue.push(report);
+    }
+    localStorage.setItem(LOCAL_STORAGE_PENDING_SYNC, JSON.stringify(queue));
+  } catch (e) {
+    console.warn('Gagal menyimpan ke antrean sinkronisasi:', e);
+  }
+}
+
+export async function syncPendingReportsToFirestore() {
+  if (!isFirebaseActive || !db) return { synced: 0, pending: 0 };
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return { synced: 0, pending: 0 };
+
+  try {
+    const queue = JSON.parse(localStorage.getItem(LOCAL_STORAGE_PENDING_SYNC) || '[]');
+    if (!Array.isArray(queue) || queue.length === 0) return { synced: 0, pending: 0 };
+
+    const remaining = [];
+    let syncedCount = 0;
+
+    for (const report of queue) {
+      try {
+        await setDoc(doc(db, 'assessments', report.id), report);
+        await updateTokenStatus(report.token, 'completed', report.studentInfo);
+        syncedCount++;
+      } catch (err) {
+        console.warn(`Sinkronisasi tertunda untuk ${report.id} gagal, dicoba lagi nanti:`, err);
+        remaining.push(report);
+      }
+    }
+
+    localStorage.setItem(LOCAL_STORAGE_PENDING_SYNC, JSON.stringify(remaining));
+    if (syncedCount > 0) {
+      console.info(`[GALAU Cloud Sync] Berhasil menyinkronkan ${syncedCount} laporan yang tersimpan secara lokal.`);
+    }
+    return { synced: syncedCount, pending: remaining.length };
+  } catch (err) {
+    console.warn('Gagal memproses antrean sinkronisasi:', err);
+    return { synced: 0, pending: 0 };
+  }
+}
+
+// Inisialisasi pendengar sinyal online untuk sinkronisasi otomatis
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    syncPendingReportsToFirestore();
+  });
+  // Coba sinkronisasi saat inisialisasi jika online
+  setTimeout(() => {
+    syncPendingReportsToFirestore();
+  }, 3000);
+}
+
+/**
  * Simpan Hasil Asesmen Lengkap
  */
 export async function saveAssessmentReport(reportData) {
@@ -298,19 +409,7 @@ export async function saveAssessmentReport(reportData) {
     savedAt: new Date().toISOString()
   };
 
-  // Update status token
-  await updateTokenStatus(reportData.token, 'completed', reportData.studentInfo);
-
-  // Simpan ke Firebase jika aktif
-  if (isFirebaseActive && db) {
-    try {
-      await setDoc(doc(db, 'assessments', reportId), completeReport);
-    } catch (e) {
-      console.warn('Gagal simpan laporan ke Firestore:', e);
-    }
-  }
-
-  // Simpan ke local storage
+  // 1. Simpan segera ke basis data lokal (cadangan aman terproteksi dari gangguan sinyal)
   const reports = JSON.parse(localStorage.getItem(LOCAL_STORAGE_REPORTS) || '[]');
   const existingIndex = reports.findIndex(r => r.id === reportId || r.token === reportData.token);
   if (existingIndex >= 0) {
@@ -319,6 +418,31 @@ export async function saveAssessmentReport(reportData) {
     reports.unshift(completeReport);
   }
   localStorage.setItem(LOCAL_STORAGE_REPORTS, JSON.stringify(reports));
+
+  // 2. Perbarui status token lokal
+  await updateTokenStatus(reportData.token, 'completed', reportData.studentInfo);
+
+  // 3. Cadangkan ke snapshot sesi aktif
+  saveActiveSessionBackup({
+    currentReport: completeReport,
+    activeView: 'report',
+    status: 'completed'
+  });
+
+  // 4. Sinkronkan ke Firebase jika jaringan aktif, atau simpan ke antrean jika sinyal terputus
+  let syncedToCloud = false;
+  if (isFirebaseActive && db && (typeof navigator === 'undefined' || navigator.onLine)) {
+    try {
+      await setDoc(doc(db, 'assessments', reportId), completeReport);
+      syncedToCloud = true;
+    } catch (e) {
+      console.warn('Gagal simpan langsung ke Firestore (masuk antrean sinkronisasi otomatis):', e);
+    }
+  }
+
+  if (!syncedToCloud && isFirebaseActive) {
+    enqueuePendingSyncReport(completeReport);
+  }
 
   return completeReport;
 }

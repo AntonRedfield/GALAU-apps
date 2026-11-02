@@ -96,7 +96,7 @@ export function AppInfoModal({ isOpen, onClose }) {
                   step: 3,
                   title: 'Pengisian Asesmen Berjenjang',
                   desc: 'Jawab butir-butir pertanyaan berdasarkan apa yang dirasakan selama 7 hari terakhir. Pertanyaan mencakup respon emosional dan berbagai domain kehidupan.',
-                  note: 'Tersedia panduan slider interaktif, label kontekstual, dan lampiran ilustrasi visual agar proses pengisian terasa nyaman.'
+                  note: 'Dilengkapi perlindungan darurat otomatis: jawaban tetap tersimpan aman di perangkat jika sinyal terputus atau browser ter-refresh, sehingga sesi dapat terus dilanjutkan tanpa mengulang.'
                 },
                 {
                   step: 4,

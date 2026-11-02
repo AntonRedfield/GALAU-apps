@@ -7,9 +7,10 @@ import {
 } from '../data/assessmentQuestions';
 import {
   ArrowLeft, ArrowRight, CheckCircle2, Clock, Sparkles,
-  HelpCircle, AlertCircle, Sliders, Tag, BatteryMedium, GitBranch, Info, Eye, Shuffle
+  HelpCircle, AlertCircle, Sliders, Tag, BatteryMedium, GitBranch, Info, Eye, Shuffle,
+  Wifi, WifiOff, ShieldCheck
 } from 'lucide-react';
-import { getAllAssessmentQuestions, parseGoogleDriveMedia } from '../services/storageService';
+import { getAllAssessmentQuestions, parseGoogleDriveMedia, saveActiveSessionBackup } from '../services/storageService';
 
 const SCALE_MODES = ['slider', 'semantic', 'battery'];
 
@@ -94,6 +95,21 @@ export function AssessmentRunner({ studentData, onCompleteAssessment }) {
 
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showInstructionTooltip, setShowInstructionTooltip] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  // Pantau status koneksi secara berkala dan reaktif
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     if (draftKey && Object.keys(questionScaleTypes).length > 0) {
@@ -111,9 +127,17 @@ export function AssessmentRunner({ studentData, onCompleteAssessment }) {
     });
   }, []);
 
+  // Simpan respon dan cadangan sesi otomatis ke format ringan JSON
   useEffect(() => {
-    if (draftKey) localStorage.setItem(`draft_responses_${draftKey}`, JSON.stringify(responses));
-  }, [responses, draftKey]);
+    if (draftKey) {
+      localStorage.setItem(`draft_responses_${draftKey}`, JSON.stringify(responses));
+      saveActiveSessionBackup({
+        activeView: 'assessment',
+        studentData,
+        responses
+      });
+    }
+  }, [responses, draftKey, studentData]);
 
   // Domain expansion logic for adaptive mode
   const expandedDomainIds = useMemo(() => {
@@ -156,7 +180,24 @@ export function AssessmentRunner({ studentData, onCompleteAssessment }) {
 
   const totalQuestions = activeQuestions.length;
 
-  const [currentQuestionId, setCurrentQuestionId] = useState(() => activeQuestions[0]?.id || 1);
+  const [currentQuestionId, setCurrentQuestionId] = useState(() => {
+    try {
+      const savedQ = localStorage.getItem(`draft_current_q_${draftKey}`);
+      if (savedQ && Number(savedQ)) return Number(savedQ);
+    } catch {}
+    return activeQuestions[0]?.id || 1;
+  });
+
+  // Simpan posisi soal saat ini untuk pemulihan bencana (misal: ter-refresh atau tertutup)
+  useEffect(() => {
+    if (draftKey && currentQuestionId) {
+      localStorage.setItem(`draft_current_q_${draftKey}`, String(currentQuestionId));
+      saveActiveSessionBackup({
+        currentQuestionId,
+        activeView: 'assessment'
+      });
+    }
+  }, [currentQuestionId, draftKey]);
 
   const currentIndex = useMemo(() => {
     const idx = activeQuestions.findIndex(q => q.id === currentQuestionId);
@@ -218,6 +259,11 @@ export function AssessmentRunner({ studentData, onCompleteAssessment }) {
 
   const handleFinalSubmit = () => {
     setShowReviewModal(false);
+    try {
+      localStorage.removeItem(`draft_responses_${draftKey}`);
+      localStorage.removeItem(`draft_scaletypes_${draftKey}`);
+      localStorage.removeItem(`draft_current_q_${draftKey}`);
+    } catch {}
     const fullResponses = { ...responses };
     if (assessmentMode === 'adaptive') {
       allQuestions.forEach(q => { if (fullResponses[q.id] === undefined) fullResponses[q.id] = 0; });
@@ -231,6 +277,27 @@ export function AssessmentRunner({ studentData, onCompleteAssessment }) {
 
   return (
     <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+      {/* Spanduk Tanggap Darurat jika Sinyal Terputus */}
+      {!isOnline && (
+        <div style={{
+          background: '#FEF3C7',
+          border: '1px solid #FCD34D',
+          borderRadius: 'var(--radius-sm)',
+          padding: '0.75rem 1rem',
+          marginBottom: '1rem',
+          fontSize: '0.82rem',
+          color: '#92400E',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.65rem'
+        }}>
+          <WifiOff size={18} color="#D97706" style={{ flexShrink: 0 }} />
+          <div>
+            <strong>Sinyal Terputus (Cadangan Darurat Aktif):</strong> Jangan khawatir! Seluruh jawaban Anda tetap tersimpan otomatis di penyimpanan lokal perangkat ini. Anda dapat terus melanjutkan pengisian dengan aman. Data akan disinkronkan saat koneksi kembali normal.
+          </div>
+        </div>
+      )}
+
       {/* Adaptive banner */}
       {assessmentMode === 'adaptive' && (
         <div className="branching-banner">
@@ -309,9 +376,15 @@ export function AssessmentRunner({ studentData, onCompleteAssessment }) {
       <div className="glass-card" style={{ padding: '1.5rem' }}>
         {/* Sub-header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          <span className="badge badge-mild" style={{ textTransform: 'none', fontSize: '0.72rem' }}>
-            {currentQ.subscaleTitle}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span className="badge badge-mild" style={{ textTransform: 'none', fontSize: '0.72rem' }}>
+              {currentQ.subscaleTitle}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: '#059669', fontWeight: 500 }} title="Seluruh jawaban otomatis dicadangkan di perangkat">
+              <CheckCircle2 size={12} color="#10B981" /> Cadangan Tersimpan
+            </span>
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <Clock size={12} /> 7 hari terakhir
             <button type="button" onClick={() => setShowInstructionTooltip(!showInstructionTooltip)}
