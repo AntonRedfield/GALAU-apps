@@ -3,14 +3,14 @@
 > **Sistem Bimbingan, Konseling & Asesmen Kesejahteraan Psikologis Remaja Terpadu**  
 > Mengintegrasikan instrumen baku **DASS-42** (*Depression Anxiety Stress Scales*) dan instrumen skrining kebutuhan **DCM** (*Daftar Cek Masalah*).
 
-[![Deploy to GitHub Pages](https://github.com/AntonRedfield/galau-counseling-assessment/actions/workflows/deploy.yml/badge.svg)](https://github.com/AntonRedfield/galau-counseling-assessment/actions/workflows/deploy.yml)
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-brightgreen)](https://antonredfield.github.io/galau-counseling-assessment/)
+[![Deploy to GitHub Pages](https://github.com/AntonRedfield/GALAU-apps/actions/workflows/deploy.yml/badge.svg)](https://github.com/AntonRedfield/GALAU-apps/actions/workflows/deploy.yml)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-brightgreen)](https://antonredfield.github.io/GALAU-apps/)
 
 ---
 
 ## 🌐 Live Application
 Aplikasi ini di-hosting secara otomatis melalui GitHub Pages:  
-👉 **[https://antonredfield.github.io/galau-counseling-assessment/](https://antonredfield.github.io/galau-counseling-assessment/)**
+👉 **[https://antonredfield.github.io/GALAU-apps/](https://antonredfield.github.io/GALAU-apps/)**
 
 ---
 
@@ -59,8 +59,8 @@ Aplikasi ini di-hosting secara otomatis melalui GitHub Pages:
 ### Langkah Instalasi
 ```bash
 # 1. Clone repositori
-git clone https://github.com/AntonRedfield/galau-counseling-assessment.git
-cd galau-counseling-assessment
+git clone https://github.com/AntonRedfield/GALAU-apps.git
+cd GALAU-apps
 
 # 2. Pasang dependensi
 npm install

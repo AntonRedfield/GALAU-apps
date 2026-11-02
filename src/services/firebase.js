@@ -5,7 +5,7 @@
  */
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 
 const STORAGE_KEY_FIREBASE_CONFIG = 'galau_firebase_config';
 
@@ -80,6 +80,82 @@ export function saveFirebaseConfig(newConfig) {
 export function removeFirebaseConfig() {
   localStorage.removeItem(STORAGE_KEY_FIREBASE_CONFIG);
   window.location.reload();
+}
+
+/**
+ * Login Admin menggunakan Firebase Authentication (Email & Password)
+ * @param {string} email - Email admin (e.g. admin@sekolah.id)
+ * @param {string} password - Password admin
+ * @returns {Promise<{success: boolean, user?: object, error?: string}>}
+ */
+export async function firebaseAdminLogin(email, password) {
+  if (!firebaseAuthInstance) {
+    return { success: false, error: 'Firebase belum dikonfigurasi.' };
+  }
+
+  try {
+    const userCredential = await signInWithEmailAndPassword(firebaseAuthInstance, email, password);
+    return {
+      success: true,
+      user: {
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        displayName: userCredential.user.displayName || 'Administrator'
+      }
+    };
+  } catch (error) {
+    let errorMsg = 'Autentikasi gagal.';
+    switch (error.code) {
+      case 'auth/invalid-email':
+        errorMsg = 'Format email tidak valid.';
+        break;
+      case 'auth/user-not-found':
+        errorMsg = 'Akun admin tidak ditemukan di Firebase.';
+        break;
+      case 'auth/wrong-password':
+        errorMsg = 'Kata sandi salah.';
+        break;
+      case 'auth/invalid-credential':
+        errorMsg = 'Email atau kata sandi salah.';
+        break;
+      case 'auth/too-many-requests':
+        errorMsg = 'Terlalu banyak percobaan gagal. Coba lagi nanti.';
+        break;
+      default:
+        errorMsg = `Kesalahan autentikasi: ${error.message}`;
+    }
+    return { success: false, error: errorMsg };
+  }
+}
+
+/**
+ * Logout Firebase Auth
+ */
+export async function firebaseAdminLogout() {
+  if (firebaseAuthInstance) {
+    try {
+      await signOut(firebaseAuthInstance);
+    } catch (e) {
+      console.warn('Gagal logout Firebase:', e);
+    }
+  }
+}
+
+/**
+ * Subscribe to Auth state changes
+ */
+export function onFirebaseAuthChanged(callback) {
+  if (firebaseAuthInstance) {
+    return onAuthStateChanged(firebaseAuthInstance, callback);
+  }
+  return () => {};
+}
+
+/**
+ * Get current authenticated user
+ */
+export function getCurrentUser() {
+  return firebaseAuthInstance?.currentUser || null;
 }
 
 // Inisialisasi awal

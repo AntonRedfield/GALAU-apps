@@ -248,16 +248,18 @@ export function CounselorDashboard({ onSelectReport, onOpenFirebaseModal }) {
                   <th>Kecemasan</th>
                   <th>Stres</th>
                   <th>Triase</th>
+                  <th>Konsultasi</th>
                   <th>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredReports.length === 0 ? (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>Tidak ada data yang cocok.</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>Tidak ada data yang cocok.</td></tr>
                 ) : filteredReports.map((r, i) => {
                   const s = r.studentInfo || {};
                   const dass = r.scores?.dass || {};
                   const triage = r.scores?.triage || {};
+                  const isConsultDone = r.consultationStatus === 'completed' || Boolean(r.consultation);
                   return (
                     <tr key={i}>
                       <td>
@@ -275,6 +277,17 @@ export function CounselorDashboard({ onSelectReport, onOpenFirebaseModal }) {
                         }}>
                           {triage.level || 'NORMAL'}
                         </span>
+                      </td>
+                      <td>
+                        {isConsultDone ? (
+                          <span className="badge badge-normal" style={{ fontSize: '0.68rem', background: '#DCFCE7', color: '#15803D' }}>
+                            ✅ Selesai
+                          </span>
+                        ) : (
+                          <span className="badge badge-moderate" style={{ fontSize: '0.68rem' }}>
+                            🟡 Belum
+                          </span>
+                        )}
                       </td>
                       <td>
                         <button className="btn btn-primary btn-sm" onClick={() => onSelectReport(r)}>

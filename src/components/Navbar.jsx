@@ -1,11 +1,18 @@
 import React from 'react';
-import { Brain, Database, UserCheck, LogOut, ShieldCheck } from 'lucide-react';
+import { Brain, Database, UserCheck, LogOut, ShieldCheck, Info } from 'lucide-react';
 import { isFirebaseActive } from '../services/firebase';
 
-export function Navbar({ currentToken, onLogout, onOpenFirebaseModal, activeView, setActiveView }) {
+export function Navbar({
+  currentToken,
+  onLogout,
+  onOpenFirebaseModal,
+  activeView,
+  setActiveView,
+  onOpenInfoModal
+}) {
   return (
     <header className="navbar">
-      <div className="nav-brand" onClick={() => setActiveView('login')}>
+      <div className="nav-brand" onClick={() => setActiveView('login')} style={{ cursor: 'pointer' }}>
         <div className="brand-icon-box">
           <Brain size={20} />
         </div>
@@ -16,13 +23,26 @@ export function Navbar({ currentToken, onLogout, onOpenFirebaseModal, activeView
       </div>
 
       <div className="nav-actions">
+        {/* Info & Tutorial Button (Logo 'i') */}
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={onOpenInfoModal}
+          title="Petunjuk & Informasi Aplikasi"
+          style={{ padding: '0.4rem 0.65rem' }}
+        >
+          <Info size={15} color="var(--primary)" />
+          <span className="hidden sm:inline" style={{ fontSize: '0.78rem' }}>Panduan</span>
+        </button>
+
+        {/* Backend Status / Settings Button */}
         <button
           className="btn btn-secondary btn-sm"
           onClick={onOpenFirebaseModal}
-          title="Pengaturan Backend"
+          title="Status Basis Data Firebase"
+          style={{ padding: '0.4rem 0.65rem' }}
         >
           <Database size={14} color={isFirebaseActive ? '#10B981' : '#F59E0B'} />
-          <span>{isFirebaseActive ? 'Online' : 'Offline'}</span>
+          <span style={{ fontSize: '0.78rem' }}>{isFirebaseActive ? 'Online' : 'Offline'}</span>
         </button>
 
         {currentToken && (

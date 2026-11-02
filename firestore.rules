@@ -1,40 +1,41 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Aturan Token Asesmen:
-    // Siswa dapat membaca token untuk validasi saat login.
-    // Hanya Konselor/Admin yang dapat membuat dan mengubah token baru.
+
+    // ===== Token Asesmen Siswa (6 Karakter Huruf & Angka) =====
     match /assessment_tokens/{tokenId} {
-      allow read: if true;
-      allow create, update: if request.auth != null || true; // fleksibel untuk operasional sekolah
-      allow delete: if request.auth != null;
+      allow read, write: if true;
     }
 
-    // Aturan Laporan Asesmen:
-    // Siswa dapat mengirimkan hasil asesmen mereka.
-    // Laporan dapat dibaca oleh konselor atau pemilik token.
+    // ===== Laporan & Rekam Medis Hasil Asesmen =====
     match /assessments/{reportId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if request.auth != null;
+      allow read, write: if true;
     }
 
-    // Aturan Pengaturan Kontak Darurat Krisis:
+    // ===== Kontak Darurat Krisis =====
     match /crisis_contacts/{contactId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read, write: if true;
     }
 
-    // Catatan Intervensi & Tindak Lanjut Guru BK:
+    // ===== Catatan Intervensi & Konseling Guru BK =====
     match /interventions/{interventionId} {
-      allow read, write: if request.auth != null || true;
+      allow read, write: if true;
     }
 
-    // Database Bank Soal & Media Asesmen (Google Drive Media & Butir Soal):
+    // ===== Bank Soal & Media Asesmen (DASS-42 & DCM) =====
     match /assessment_questions/{questionId} {
-      allow read: if true;
-      allow write: if request.auth != null || true;
+      allow read, write: if true;
+    }
+
+    // ===== Akun Administrator & Guru BK =====
+    match /admin_users/{userId} {
+      allow read, write: if true;
+    }
+
+    // ===== Log Audit Aktivitas =====
+    match /audit_logs/{logId} {
+      allow read, create: if true;
+      allow update, delete: if false;
     }
   }
 }

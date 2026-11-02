@@ -1,86 +1,77 @@
-# Panduan Konfigurasi Backend Firebase untuk GALAU
+# Panduan Konfigurasi Backend & Database Firebase (GALAU)
 
-Aplikasi **GALAU** telah dirancang secara optimal untuk berjalan di atas ekosistem **Google Firebase** (Cloud Firestore, Authentication, & Firebase Hosting) dengan dukungan fallback offline instan.
-
----
-
-## 🚀 2 Cara Menghubungkan ke Firebase
-
-### Cara 1: Langsung dari Antarmuka Aplikasi (Paling Mudah)
-1. Buka aplikasi GALAU di browser Anda.
-2. Di pojok kanan atas navbar, klik tombol **"Status Firebase"** atau **"Pengaturan Firebase"**.
-3. Masukkan data konfigurasi proyek Firebase Anda:
-   - `apiKey`
-   - `authDomain`
-   - `projectId`
-   - `storageBucket`
-   - `messagingSenderId`
-   - `appId`
-4. Klik **"Simpan & Hubungkan"**. Aplikasi akan otomatis memuat ulang dan tersinkronisasi langsung ke Firestore!
+Aplikasi **GALAU (Guidance, Assessment of Life-distress, Anxiety & Utility)** dirancang untuk berjalan di atas ekosistem **Google Cloud / Firebase** (Cloud Firestore, Authentication, & Firebase Hosting) dengan dukungan fallback offline instan (*Local-First*).
 
 ---
 
-### Cara 2: Menggunakan File `.env` (Untuk Pengembang / Production)
-Buat file bernama `.env` di folder utama aplikasi dengan variabel berikut:
+## 🔑 Akses Administrator & Konselor
+
+Untuk mengakses Dasbor Pemantauan Konselor & Administrator:
+
+1. Pada halaman awal login, masukkan kode token akses:
+   ```text
+   konsultan
+   ```
+2. Form login administrator akan otomatis terbuka.
+3. Masukkan ID / Email dan kata sandi yang telah didaftarkan pada proyek Anda.
+
+> **Catatan Keamanan:** 
+> Kredensial akun administrator utama dapat ditentukan melalui variabel lingkungan `VITE_ADMIN_EMAIL` dan `VITE_ADMIN_PASSWORD` pada file `.env`.
+
+---
+
+## ☁️ Menghubungkan ke Proyek Firebase
+
+### Langkah 1: Buat Proyek di Firebase Console
+1. Buka [Firebase Console](https://console.firebase.google.com/) dan buat proyek baru.
+2. Buat database **Cloud Firestore** pada mode produksi (*Production Mode*), pilih lokasi server terdekat (misal: `asia-southeast2` Jakarta).
+3. Daftarkan **Web App** di dalam proyek Anda untuk mendapatkan konfigurasi SDK.
+
+### Langkah 2: Konfigurasi File `.env`
+Salin file `.env.template` menjadi `.env` di direktori utama, lalu lengkapi nilai konfigurasi:
 
 ```env
 VITE_FIREBASE_API_KEY=AIzaSyAxxxxxxxxxxxxxxxxxxxxxxxx
-VITE_FIREBASE_AUTH_DOMAIN=proyek-galau.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=proyek-galau
-VITE_FIREBASE_STORAGE_BUCKET=proyek-galau.appspot.com
+VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project-id.firebasestorage.app
 VITE_FIREBASE_MESSAGING_SENDER_ID=123456789012
 VITE_FIREBASE_APP_ID=1:123456789012:web:abcdef123456
+
+# Kredensial Administrator (Lokal / Self-hosted)
+VITE_ADMIN_EMAIL=admin@sekolah.id
+VITE_ADMIN_PASSWORD=KataSandiAman123!
 ```
 
 ---
 
-## 🗄️ Struktur Koleksi Firestore yang Digunakan
+## 🗄️ Struktur Koleksi Database Firestore
 
-Aplikasi secara otomatis membaca dan menulis ke koleksi berikut:
+Aplikasi mengelola koleksi data berikut secara otomatis:
 
-1. **`assessment_tokens`**
-   - Dokumen per token siswa:
-     ```json
-     {
-       "token": "GLU-2026-X1A",
-       "role": "student",
-       "className": "X - IPA 1",
-       "status": "unused", // unused | completed
-       "createdAt": "2026-10-12T00:00:00Z",
-       "expiresAt": "2026-12-31T23:59:59Z"
-     }
-     ```
+1. **`admin_users`** — Pendaftaran akun administrator & hak akses konselor.
+2. **`assessment_tokens`** — Token 6-digit akses asesmen siswa (status: `unused` / `completed`).
+3. **`assessments`** — Dokumen hasil skrining lengkap DASS-42, DCM, dan triase risiko.
+4. **`crisis_contacts`** — Direktori kontak darurat krisis yang dapat dikonfigurasi sekolah.
+5. **`assessment_questions`** — Bank 126 butir soal asesmen DASS-42 & DCM beserta tautan media pendukung.
 
-2. **`assessments`**
-   - Dokumen laporan analitis psikologis lengkap:
-     ```json
-     {
-       "id": "REP-2026-001",
-       "token": "GLU-2026-X1A",
-       "studentInfo": {
-         "fullName": "Ahmad Fauzan",
-         "nisn": "0081293841",
-         "className": "X - IPA 1",
-         "gender": "Laki-laki",
-         "age": 16
-       },
-       "scores": {
-         "dass": { "depresi": { "score": 8 }, "kecemasan": { "score": 6 }, "stres": { "score": 11 } },
-         "triage": { "level": "NORMAL", "reasons": [] },
-         "domainAnalysis": [...]
-       },
-       "completedAt": "2026-10-12T08:30:00Z"
-     }
-     ```
+---
 
-3. **`crisis_contacts`**
-   - Pengaturan hotline bantuan darurat yang dapat disesuaikan oleh sekolah.
+## 📦 Menanam Data Awal (Seeding)
+
+Setelah file `.env` terkonfigurasi, jalankan skrip seeder untuk menanam token awal, butir soal, dan kontak krisis ke database Firestore:
+
+```bash
+node scripts/firebase-seed.mjs
+```
 
 ---
 
 ## 🔒 Penerapan Aturan Keamanan (Security Rules)
 
-Unggah file `firestore.rules` yang telah disediakan ke Firebase Console di tab **Firestore Database > Rules**, atau jalankan perintah:
+Unggah berkas `firestore.rules` melalui Firebase CLI:
+
 ```bash
 firebase deploy --only firestore:rules
 ```
+Atau salin isi berkas `firestore.rules` ke menu **Firestore Database > Rules** pada Firebase Console.

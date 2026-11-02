@@ -16,7 +16,7 @@ import {
   query,
   where
 } from 'firebase/firestore';
-import { db, isFirebaseActive } from './firebase';
+import { db, isFirebaseActive, firebaseAdminLogin, firebaseAdminLogout } from './firebase';
 import { INITIAL_TOKENS, SAMPLE_COMPLETED_REPORTS } from '../data/seedTokens';
 import { DEFAULT_CRISIS_CONTACTS } from '../data/scoringRules';
 import { RAW_QUESTIONS } from '../data/assessmentQuestions';
@@ -96,14 +96,94 @@ export async function validateToken(tokenInput) {
 }
 
 /**
- * Validasi Login Admin / Guru BK dengan ID & Kata Sandi
- * Dipanggil setelah memasukkan token MASTER
+ * Validasi Login Admin / Guru BK dengan Email & Kata Sandi
+ * Mendukung Konfigurasi Lingkungan (.env), Firestore Database, dan Firebase Authentication
  */
 export async function validateAdminCredentials(adminId, password) {
   const cleanId = (adminId || '').trim().toLowerCase();
   const cleanPass = (password || '').trim();
 
-  // Kredensial default: ID = admin / gurubk / master, Password = admin123 / master123 / admin
+  // === 1. KREDENSIAL UTAMA DARI ENVIRONMENT (.env) ===
+  const envAdminEmail = (import.meta.env.VITE_ADMIN_EMAIL || '').trim().toLowerCase();
+  const envAdminPassword = (import.meta.env.VITE_ADMIN_PASSWORD || '').trim();
+
+  if (envAdminEmail && cleanId === envAdminEmail && cleanPass === envAdminPassword) {
+    if (isFirebaseActive && db) {
+      try {
+        await setDoc(doc(db, 'admin_users', envAdminEmail), {
+          email: envAdminEmail,
+          role: 'admin',
+          displayName: 'Administrator Utama',
+          lastLogin: new Date().toISOString(),
+          status: 'active'
+        }, { merge: true });
+      } catch (err) {
+        console.warn('Gagal sync admin ke Firestore:', err);
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        token: 'KONSULTAN',
+        role: 'admin',
+        studentName: 'Koordinator BK & Administrator',
+        className: 'Pusat Layanan Konseling & BK',
+        email: envAdminEmail,
+        status: 'active',
+        authMethod: 'env_admin'
+      }
+    };
+  }
+
+  // === 2. VERIFIKASI FIRESTORE DATABASE `admin_users` ===
+  if (isFirebaseActive && db) {
+    try {
+      const adminDocRef = doc(db, 'admin_users', cleanId);
+      const adminDocSnap = await getDoc(adminDocRef);
+      if (adminDocSnap.exists()) {
+        const adminData = adminDocSnap.data();
+        if (adminData.password && adminData.password === cleanPass) {
+          return {
+            success: true,
+            data: {
+              token: 'KONSULTAN',
+              role: adminData.role || 'admin',
+              studentName: adminData.displayName || 'Administrator BK',
+              className: adminData.className || 'Ruang Layanan BK',
+              email: cleanId,
+              status: 'active',
+              authMethod: 'firestore'
+            }
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('Cek admin di Firestore gagal:', e);
+    }
+  }
+
+  // === 3. FIREBASE AUTHENTICATION (jika diaktifkan) ===
+  if (isFirebaseActive && cleanId.includes('@')) {
+    const firebaseResult = await firebaseAdminLogin(cleanId, cleanPass);
+    if (firebaseResult.success) {
+      return {
+        success: true,
+        data: {
+          token: 'KONSULTAN',
+          role: 'admin',
+          studentName: firebaseResult.user.displayName || 'Administrator GALAU',
+          className: 'Ruang Layanan BK',
+          status: 'active',
+          uid: firebaseResult.user.uid,
+          email: firebaseResult.user.email,
+          authMethod: 'firebase_auth'
+        }
+      };
+    }
+  }
+
+  // === 4. FALLBACK KREDENSIAL LOKAL (admin / admin123) ===
   const validIds = ['admin', 'gurubk', 'guru-bk', 'master', 'konselor'];
   const validPasswords = ['admin123', 'admin', 'master123', 'gurubk123'];
 
@@ -111,23 +191,31 @@ export async function validateAdminCredentials(adminId, password) {
     return {
       success: true,
       data: {
-        token: 'MASTER',
+        token: 'KONSULTAN',
         role: 'admin',
         studentName: cleanId === 'gurubk' || cleanId === 'konselor' ? 'Guru BK Pembimbing' : 'Koordinator BK & Administrator',
         className: 'Ruang Layanan BK',
-        status: 'active'
+        status: 'active',
+        authMethod: 'local'
       }
     };
   }
 
   return {
     success: false,
-    message: 'ID Admin atau Kata Sandi salah. (Default: ID = admin, Sandi = admin123)'
+    message: 'ID Administrator atau kata sandi tidak sesuai. Silakan periksa kembali kredensial Anda.'
   };
 }
 
 export async function validateAdminLogin(passwordOrCredentials) {
   return validateAdminCredentials('admin', passwordOrCredentials);
+}
+
+/**
+ * Logout Admin dari Firebase Auth
+ */
+export async function logoutAdmin() {
+  await firebaseAdminLogout();
 }
 
 
@@ -333,6 +421,49 @@ export async function recordIntervention(reportId, interventionData) {
   }
 
   return newIntervention;
+}
+
+/**
+ * Perbarui Status & Catatan Sesi Konsultasi Selesai (Consult Done)
+ */
+export async function updateConsultationStatus(reportId, consultationData) {
+  const reports = JSON.parse(localStorage.getItem(LOCAL_STORAGE_REPORTS) || '[]');
+  const reportIndex = reports.findIndex(r => r.id === reportId);
+
+  const completedConsultation = {
+    status: 'completed',
+    completedAt: new Date().toISOString(),
+    counselorName: consultationData.counselorName || 'Guru BK Pembimbing / Konselor',
+    consultationType: consultationData.consultationType || 'Tatap Muka di Ruang BK',
+    topic: consultationData.topic || 'Regulasi Emosi & Penyesuaian Diri',
+    notes: consultationData.notes || 'Sesi konsultasi telah diselesaikan dan konseli mendapatkan arahan praktis.',
+    actionPlan: consultationData.actionPlan || 'Mempraktikkan teknik regulasi emosi harian dan menjaga keseimbangan pola hidup.',
+    ...consultationData
+  };
+
+  let updatedReport = null;
+
+  if (reportIndex >= 0) {
+    reports[reportIndex].consultation = completedConsultation;
+    reports[reportIndex].consultationStatus = 'completed';
+    reports[reportIndex].updatedAt = new Date().toISOString();
+    updatedReport = reports[reportIndex];
+    localStorage.setItem(LOCAL_STORAGE_REPORTS, JSON.stringify(reports));
+
+    if (isFirebaseActive && db) {
+      try {
+        await updateDoc(doc(db, 'assessments', reportId), {
+          consultation: completedConsultation,
+          consultationStatus: 'completed',
+          updatedAt: new Date().toISOString()
+        });
+      } catch (err) {
+        console.warn('Gagal update status konsultasi di Firebase:', err);
+      }
+    }
+  }
+
+  return updatedReport;
 }
 
 /**

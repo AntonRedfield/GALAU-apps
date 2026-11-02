@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   Brain, Printer, ShieldCheck, Heart, User, FileSpreadsheet,
-  CheckCircle, Sparkles, Compass, ArrowRight, PlusCircle, FileText
+  CheckCircle, Sparkles, Compass, ArrowRight, PlusCircle, FileText, HeartHandshake
 } from 'lucide-react';
 import { recordIntervention, getCrisisContacts } from '../services/storageService';
 
-export function ReportView({ reportData, userRole, onBackToDashboard, onRetake }) {
+export function ReportView({ reportData, userRole, onBackToDashboard, onRetake, onProceedToConsult }) {
   const [activeTab, setActiveTab] = useState(userRole === 'counselor' || userRole === 'admin' ? 'official' : 'student');
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [crisisContacts, setCrisisContacts] = useState([]);
@@ -76,13 +76,28 @@ export function ReportView({ reportData, userRole, onBackToDashboard, onRetake }
 
       {/* Tab bar */}
       <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
-        <div style={{ display: 'flex', gap: '0.35rem', background: 'var(--bg)', padding: '0.25rem', borderRadius: 'var(--radius-md)' }}>
+        <div style={{ display: 'flex', gap: '0.35rem', background: 'var(--bg)', padding: '0.25rem', borderRadius: 'var(--radius-md)', flexWrap: 'wrap' }}>
           <button className={`btn btn-sm ${activeTab === 'student' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('student')}>
             <Heart size={14} /> Rangkuman
           </button>
           <button className={`btn btn-sm ${activeTab === 'official' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('official')}>
             <Brain size={14} /> Laporan Analitis
           </button>
+          {onProceedToConsult && (
+            <button
+              className="btn btn-sm"
+              onClick={onProceedToConsult}
+              style={{
+                background: reportData.consultationStatus === 'completed' ? '#DCFCE7' : '#EFF6FF',
+                color: reportData.consultationStatus === 'completed' ? '#15803D' : '#1D4ED8',
+                borderColor: reportData.consultationStatus === 'completed' ? '#86EFAC' : '#BFDBFE',
+                fontWeight: 700
+              }}
+            >
+              <HeartHandshake size={14} />
+              <span>{reportData.consultationStatus === 'completed' ? '✅ Bukti Konsultasi Selesai' : '💬 Konsultasi (Consult Done)'}</span>
+            </button>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: '0.35rem' }}>
@@ -164,6 +179,39 @@ export function ReportView({ reportData, userRole, onBackToDashboard, onRetake }
                 ))}
               </div>
             </div>
+
+            {/* Final Step CTA: Get Consult Done */}
+            {onProceedToConsult && (
+              <div style={{
+                background: reportData.consultationStatus === 'completed' ? '#F0FDF4' : '#EEF2FF',
+                border: `1px solid ${reportData.consultationStatus === 'completed' ? '#86EFAC' : '#C7D2FE'}`,
+                borderRadius: 'var(--radius-md)', padding: '1.25rem', textAlign: 'center', marginTop: '1.25rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: reportData.consultationStatus === 'completed' ? '#166534' : 'var(--primary)', marginBottom: '0.35rem' }}>
+                  <HeartHandshake size={20} />
+                  <strong style={{ fontSize: '1rem' }}>Langkah Terakhir: Sesi Konsultasi & Tindak Lanjut</strong>
+                </div>
+                <p style={{ fontSize: '0.82rem', color: reportData.consultationStatus === 'completed' ? '#15803D' : 'var(--text-secondary)', maxWidth: '520px', margin: '0 auto 1rem' }}>
+                  {reportData.consultationStatus === 'completed'
+                    ? 'Sesi konsultasi Anda telah selesai tercatat dan diverifikasi. Anda dapat melihat lembar bukti resmi atau mencetaknya.'
+                    : 'Dapatkan bimbingan solusi praktis bersama konselor atau selesaikan formulir konsultasi untuk memperoleh Lembar Bukti Resmi.'}
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-lg"
+                  onClick={onProceedToConsult}
+                  style={{
+                    background: reportData.consultationStatus === 'completed' ? '#16A34A' : 'var(--primary)',
+                    borderColor: reportData.consultationStatus === 'completed' ? '#16A34A' : 'var(--primary)',
+                    boxShadow: 'var(--shadow-md)'
+                  }}
+                >
+                  <HeartHandshake size={18} />
+                  <span>{reportData.consultationStatus === 'completed' ? 'Lihat Bukti Konsultasi Selesai (Consult Done)' : 'Lanjutkan ke Sesi Konsultasi (Get Consult Done)'}</span>
+                  <ArrowRight size={18} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
