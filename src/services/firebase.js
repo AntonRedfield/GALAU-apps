@@ -14,7 +14,10 @@ export function getStoredFirebaseConfig() {
   try {
     const fromStorage = localStorage.getItem(STORAGE_KEY_FIREBASE_CONFIG);
     if (fromStorage) {
-      return JSON.parse(fromStorage);
+      const parsed = JSON.parse(fromStorage);
+      if (isFirebaseConfigValid(parsed)) {
+        return parsed;
+      }
     }
   } catch (e) {
     console.warn('Gagal membaca konfigurasi Firebase dari localStorage:', e);
