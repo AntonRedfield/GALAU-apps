@@ -57,9 +57,13 @@ export function CounselorDashboard({ onSelectReport, onOpenFirebaseModal }) {
     const s = r.studentInfo || {};
     const dass = r.scores?.dass || {};
     const triage = r.scores?.triage || {};
+    const query = searchQuery.trim().toLowerCase();
     const matchSearch =
-      (s.fullName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (s.occupation || s.className || '').toLowerCase().includes(searchQuery.toLowerCase());
+      !query ||
+      (r.id || '').toLowerCase().includes(query) ||
+      (r.token || '').toLowerCase().includes(query) ||
+      (s.fullName || '').toLowerCase().includes(query) ||
+      (s.occupation || s.className || '').toLowerCase().includes(query);
     if (!matchSearch) return false;
     if (filterSeverity === 'all') return true;
     if (filterSeverity === 'kritis') return triage.level === 'KRITIS';
@@ -230,10 +234,15 @@ export function CounselorDashboard({ onSelectReport, onOpenFirebaseModal }) {
               ))}
             </div>
 
-            <div style={{ position: 'relative', width: '220px' }}>
-              <input type="text" placeholder="Cari nama..." className="form-input"
-                style={{ paddingLeft: '2rem', fontSize: '0.8rem' }} value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)} />
+            <div style={{ position: 'relative', width: '280px' }}>
+              <input
+                type="text"
+                placeholder="Cari ID (REP-...), token, nama..."
+                className="form-input"
+                style={{ paddingLeft: '2rem', fontSize: '0.8rem' }}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
               <Search size={14} style={{ position: 'absolute', left: '8px', top: '11px', color: 'var(--text-muted)' }} />
             </div>
           </div>
@@ -242,8 +251,8 @@ export function CounselorDashboard({ onSelectReport, onOpenFirebaseModal }) {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Nama</th>
-                  <th>Pekerjaan</th>
+                  <th>ID Laporan</th>
+                  <th>Konseli</th>
                   <th>Depresi</th>
                   <th>Kecemasan</th>
                   <th>Stres</th>
@@ -261,12 +270,32 @@ export function CounselorDashboard({ onSelectReport, onOpenFirebaseModal }) {
                   const triage = r.scores?.triage || {};
                   const isConsultDone = r.consultationStatus === 'completed' || Boolean(r.consultation);
                   return (
-                    <tr key={i}>
+                    <tr key={r.id || i}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <strong style={{ fontFamily: 'monospace', color: 'var(--primary)', fontSize: '0.88rem' }}>
+                            {r.id || '-'}
+                          </strong>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(r.id)}
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '0.15rem 0.35rem', fontSize: '0.65rem' }}
+                            title="Salin ID Dokumen untuk pencarian database"
+                          >
+                            <Copy size={11} />
+                          </button>
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                          Token: {r.token || '-'}
+                        </div>
+                      </td>
                       <td>
                         <strong>{s.fullName || '-'}</strong>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{s.age ? `${s.age} Th` : ''}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          {s.occupation || s.className || 'Umum'} {s.age ? `• ${s.age} Th` : ''}
+                        </div>
                       </td>
-                      <td>{s.occupation || 'Umum'}</td>
                       <td><span className={`badge ${dass.depresi?.severity?.badgeClass || 'badge-normal'}`}>{dass.depresi?.score ?? '-'}</span></td>
                       <td><span className={`badge ${dass.kecemasan?.severity?.badgeClass || 'badge-normal'}`}>{dass.kecemasan?.score ?? '-'}</span></td>
                       <td><span className={`badge ${dass.stres?.severity?.badgeClass || 'badge-normal'}`}>{dass.stres?.score ?? '-'}</span></td>

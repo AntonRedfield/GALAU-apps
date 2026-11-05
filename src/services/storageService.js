@@ -399,10 +399,46 @@ if (typeof window !== 'undefined') {
 }
 
 /**
+ * Generator ID Laporan Berformat Standar (Contoh: REP-2026-001, REP-2026-002, ...)
+ * Memudahkan administrator basis data mencari data dokumen secara cepat di Firestore maupun penyimpanan lokal.
+ */
+export async function generateNextReportId() {
+  const currentYear = new Date().getFullYear();
+  let reports = [];
+  try {
+    reports = await getAllAssessmentReports();
+  } catch {
+    reports = JSON.parse(localStorage.getItem(LOCAL_STORAGE_REPORTS) || '[]');
+  }
+
+  let maxSeq = 0;
+  const regex = new RegExp(`^REP-${currentYear}-(\\d+)$`, 'i');
+
+  reports.forEach(r => {
+    if (r && r.id) {
+      const match = String(r.id).match(regex);
+      if (match) {
+        const seq = parseInt(match[1], 10);
+        if (!isNaN(seq) && seq > maxSeq) {
+          maxSeq = seq;
+        }
+      }
+    }
+  });
+
+  const nextSeq = maxSeq + 1;
+  return `REP-${currentYear}-${String(nextSeq).padStart(3, '0')}`;
+}
+
+/**
  * Simpan Hasil Asesmen Lengkap
  */
 export async function saveAssessmentReport(reportData) {
-  const reportId = reportData.id || `REP-${Date.now()}`;
+  let reportId = reportData.id;
+  if (!reportId || (typeof reportId === 'string' && (reportId.startsWith('REP-1') || reportId.length > 15))) {
+    reportId = await generateNextReportId();
+  }
+
   const completeReport = {
     ...reportData,
     id: reportId,

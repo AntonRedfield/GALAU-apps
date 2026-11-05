@@ -43,14 +43,16 @@ export function ConsultView({
     const phone = '6281234567890'; // nomor standar BK / Konselor
     const text = encodeURIComponent(
       `Halo Bapak/Ibu Konselor/Guru BK,\n\n` +
-      `Saya *${studentInfo.fullName}* (Usia: ${studentInfo.age || '-'} Th, Pekerjaan: ${studentInfo.occupation || '-'}).\n` +
-      `Saya telah menyelesaikan skrining psikologis GALAU dengan Token: *${reportData.token}*.\n\n` +
+      `Saya ingin berkonsultasi mengenai hasil skrining psikologis GALAU saya:\n` +
+      `- *ID Laporan:* ${reportData.id}\n` +
+      `- *Token Akses:* ${reportData.token}\n` +
+      `- *Nama:* ${studentInfo.fullName || '-'}\n\n` +
       `Hasil Skrining Saya:\n` +
       `- Triase: *${triage.level}* (${triage.label})\n` +
       `- Depresi: ${dass.depresi.score} (${dass.depresi.severity.label})\n` +
       `- Kecemasan: ${dass.kecemasan.score} (${dass.kecemasan.severity.label})\n` +
       `- Stres: ${dass.stres.score} (${dass.stres.severity.label})\n\n` +
-      `Saya ingin berkonsultasi mengenai hasil asesmen ini. Terima kasih.`
+      `Mohon arahan tindak lanjut. Terima kasih.`
     );
     return `https://wa.me/${phone}?text=${text}`;
   };
@@ -79,8 +81,9 @@ export function ConsultView({
   const handleCopySummary = () => {
     const summaryText =
       `LEMBAR BUKTI SELESAI KONSULTASI (GALAU)\n` +
-      `Nama: ${studentInfo.fullName}\n` +
+      `ID Laporan: ${reportData.id}\n` +
       `Token: ${reportData.token}\n` +
+      `Nama: ${studentInfo.fullName}\n` +
       `Tanggal: ${new Date(consultData.completedAt || Date.now()).toLocaleDateString('id-ID')}\n` +
       `Status: SELESAI KONSULTASI (CONSULT DONE)\n` +
       `Konselor: ${consultData.counselorName}\n` +
@@ -367,16 +370,15 @@ export function ConsultView({
             {/* Konseli & Konsultasi Details */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
               <div style={{ background: 'white', padding: '0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid #E2E8F0' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700 }}>IDENTITAS KONSELI</span>
-                <div style={{ fontSize: '1rem', fontWeight: 800, marginTop: '0.2rem' }}>{studentInfo.fullName}</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  Lahir: {studentInfo.birthDate || '-'} ({studentInfo.age || '-'} Tahun)
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700 }}>ID DOKUMEN BASIS DATA</span>
+                <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '0.2rem', fontFamily: 'monospace', color: 'var(--primary)' }}>
+                  {reportData.id}
                 </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  Pekerjaan: {studentInfo.occupation || '-'}
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                  Token Akses: <strong style={{ fontFamily: 'monospace', color: 'var(--text)' }}>{reportData.token}</strong>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem', fontFamily: 'monospace' }}>
-                  Token Akses: {reportData.token}
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                  Konseli: {studentInfo.fullName || '-'} ({studentInfo.occupation || 'Umum'})
                 </div>
               </div>
 

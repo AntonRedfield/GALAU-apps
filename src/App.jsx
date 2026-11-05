@@ -13,7 +13,8 @@ import {
   saveAssessmentReport,
   saveActiveSessionBackup,
   getActiveSessionBackup,
-  clearActiveSessionBackup
+  clearActiveSessionBackup,
+  generateNextReportId
 } from './services/storageService';
 import { Check, ArrowRight, ShieldCheck, User, X } from 'lucide-react';
 
@@ -77,9 +78,10 @@ export function App() {
   // 3. Alur Pengisian Asesmen Selesai -> Step 4 (Hasil Asesmen)
   const handleCompleteAssessment = async (responses, questions) => {
     const scores = calculateAssessmentScores(responses, questions);
+    const standardReportId = await generateNextReportId();
 
     const reportPayload = {
-      id: `REP-${Date.now()}`,
+      id: standardReportId,
       token: currentToken ? currentToken.token : 'GLU-DIRECT',
       studentInfo: studentData,
       scores,

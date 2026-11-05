@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Brain, Printer, ShieldCheck, Heart, User, FileSpreadsheet,
-  CheckCircle, Sparkles, Compass, ArrowRight, PlusCircle, FileText, HeartHandshake
+  CheckCircle, Sparkles, Compass, ArrowRight, PlusCircle, FileText, HeartHandshake,
+  Copy, Check
 } from 'lucide-react';
 import { recordIntervention, getCrisisContacts } from '../services/storageService';
 
@@ -12,6 +13,8 @@ export function ReportView({ reportData, userRole, onBackToDashboard, onRetake, 
   const [newInterventionText, setNewInterventionText] = useState('');
   const [newInterventionType, setNewInterventionType] = useState('Konseling Individu');
   const [interventionsList, setInterventionsList] = useState(reportData.interventions || []);
+  const [copiedId, setCopiedId] = useState(false);
+  const [showIdentityDetails, setShowIdentityDetails] = useState(false);
 
   const { studentInfo, scores } = reportData;
   const { dass, triage, domainAnalysis, recommendations } = scores;
@@ -24,10 +27,10 @@ export function ReportView({ reportData, userRole, onBackToDashboard, onRetake, 
 
   const handleExportCSV = () => {
     const rows = [
-      ['PROFIL KONSELI - GALAU'],
+      ['DOKUMEN HASIL ASESMEN - GALAU'],
       ['Tanggal', new Date(reportData.completedAt || Date.now()).toLocaleDateString('id-ID')],
-      ['ID', reportData.id], ['Token', reportData.token], [''],
-      ['IDENTITAS'], ['Nama', studentInfo.fullName],
+      ['ID LAPORAN', reportData.id], ['Token', reportData.token], [''],
+      ['BIODATA KONSELI'], ['Nama', studentInfo.fullName],
       ['Lahir', studentInfo.birthDate || '-'], ['Usia', `${studentInfo.age || '-'} Th`],
       ['Pekerjaan', studentInfo.occupation || '-'], ['Kelamin', studentInfo.gender], [''],
       ['DASS-42'], ['Subskala', 'Skor', 'Maks', 'Kategori'],
@@ -42,7 +45,7 @@ export function ReportView({ reportData, userRole, onBackToDashboard, onRetake, 
     const csv = 'data:text/csv;charset=utf-8,' + rows.map(r => r.map(i => `"${i}"`).join(',')).join('\n');
     const link = document.createElement('a');
     link.setAttribute('href', encodeURI(csv));
-    link.setAttribute('download', `Konseli_${studentInfo.fullName.replace(/\s+/g, '_')}_${reportData.token}.csv`);
+    link.setAttribute('download', `Laporan_${reportData.id}_${reportData.token}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -70,8 +73,8 @@ export function ReportView({ reportData, userRole, onBackToDashboard, onRetake, 
       {/* Print header */}
       <div className="print-header" style={{ display: 'none' }}>
         <h2 style={{ fontSize: '16pt', fontWeight: 800 }}>BIMBINGAN, KONSELING & KESEHATAN MENTAL</h2>
-        <h3 style={{ fontSize: '12pt' }}>{studentInfo.occupation || 'Aplikasi GALAU'}</h3>
-        <p style={{ fontSize: '9pt', color: '#555' }}>Rekap DASS-42 & DCM — Dokumen Rahasia</p>
+        <h3 style={{ fontSize: '13pt', fontFamily: 'monospace' }}>ID LAPORAN: {reportData.id} • TOKEN: {reportData.token}</h3>
+        <p style={{ fontSize: '9pt', color: '#555' }}>Rekapitulasi DASS-42 & DCM — Dokumen Rahasia Layanan BK</p>
       </div>
 
       {/* Tab bar */}
@@ -118,11 +121,41 @@ export function ReportView({ reportData, userRole, onBackToDashboard, onRetake, 
               <Sparkles size={24} />
             </div>
 
+            {/* Prominent ID Badge */}
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              background: '#F1F5F9',
+              border: '1px solid #CBD5E1',
+              padding: '0.35rem 0.85rem',
+              borderRadius: '9999px',
+              fontSize: '0.82rem',
+              fontFamily: 'monospace',
+              fontWeight: 800,
+              color: 'var(--primary)',
+              marginBottom: '0.75rem'
+            }}>
+              <span>ID LAPORAN: {reportData.id}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(reportData.id);
+                  setCopiedId(true);
+                  setTimeout(() => setCopiedId(false), 2000);
+                }}
+                title="Salin ID Laporan untuk pencarian database"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: copiedId ? '#16A34A' : 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+              >
+                {copiedId ? <Check size={13} color="#16A34A" /> : <Copy size={13} />}
+              </button>
+            </div>
+
             <h2 style={{ fontSize: '1.4rem', marginBottom: '0.35rem', fontWeight: 800 }}>
-              Terima Kasih, {studentInfo.fullName}!
+              Hasil Asesmen #{reportData.id}
             </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', maxWidth: '520px', margin: '0 auto 1.25rem' }}>
-              Menyadari apa yang sedang kita rasakan adalah langkah awal yang berani untuk merawat diri sendiri.
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', maxWidth: '520px', margin: '0 auto 1.25rem' }}>
+              ID Dokumen: <strong style={{ fontFamily: 'monospace' }}>{reportData.id}</strong> (Gunakan kode ID ini saat berkonsultasi agar pencarian data di sistem lebih cepat dan terjaga kerahasiaannya).
             </p>
 
             {/* Reflection */}
@@ -223,14 +256,74 @@ export function ReportView({ reportData, userRole, onBackToDashboard, onRetake, 
           <div className="glass-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.85rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1rem' }}>
               <div>
-                <span className="badge badge-normal" style={{ marginBottom: '0.35rem' }}>Profil Konseli</span>
-                <h2 style={{ fontSize: '1.35rem', fontWeight: 800 }}>{studentInfo.fullName}</h2>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                  {studentInfo.occupation || 'Umum'} | {studentInfo.gender}, {studentInfo.age || '-'} Th
-                </p>
-                <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                  Lahir: {studentInfo.birthDate || '-'} | {new Date(reportData.completedAt || Date.now()).toLocaleString('id-ID')}
-                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                  <span className="badge badge-primary" style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '0.75rem', padding: '0.2rem 0.55rem' }}>
+                    ID DOKUMEN BASIS DATA
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(reportData.id);
+                      setCopiedId(true);
+                      setTimeout(() => setCopiedId(false), 2000);
+                    }}
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: '0.15rem 0.45rem', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                    title="Salin ID Laporan ke Clipboard"
+                  >
+                    {copiedId ? <Check size={12} color="#16A34A" /> : <Copy size={12} />}
+                    <span>{copiedId ? 'Tersalin' : 'Salin ID'}</span>
+                  </button>
+                </div>
+
+                {/* ID Laporan Utama Pengganti Nama, Lahir & Pekerjaan */}
+                <h2 style={{ fontSize: '1.65rem', fontWeight: 900, color: 'var(--primary)', fontFamily: 'monospace', margin: '0 0 0.35rem 0', letterSpacing: '0.5px' }}>
+                  {reportData.id}
+                </h2>
+
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                  <span>Token: <strong style={{ fontFamily: 'monospace', color: 'var(--text)' }}>{reportData.token}</strong></span>
+                  <span>•</span>
+                  <span>Waktu: {new Date(reportData.completedAt || Date.now()).toLocaleString('id-ID')}</span>
+                </div>
+
+                {/* Biodata Terkait (Dapat dibuka jika konselor butuh rujukan nama) */}
+                <div style={{ marginTop: '0.65rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowIdentityDetails(!showIdentityDetails)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      padding: 0,
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    {showIdentityDetails ? '▲ Sembunyikan Biodata Asli' : '▼ Lihat Biodata Asli (Nama, Lahir, Pekerjaan)'}
+                  </button>
+
+                  {showIdentityDetails && (
+                    <div style={{
+                      marginTop: '0.4rem',
+                      padding: '0.6rem 0.85rem',
+                      background: 'var(--bg)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.78rem',
+                      color: 'var(--text)'
+                    }}>
+                      <div style={{ marginBottom: '0.2rem' }}><strong>Nama Konseli:</strong> {studentInfo.fullName || '-'}</div>
+                      <div style={{ marginBottom: '0.2rem' }}><strong>Lahir / Usia:</strong> {studentInfo.birthDate || '-'} ({studentInfo.age || '-'} Tahun) | <strong>Kelamin:</strong> {studentInfo.gender || '-'}</div>
+                      <div><strong>Pekerjaan / Instansi:</strong> {studentInfo.occupation || '-'}</div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div style={{
